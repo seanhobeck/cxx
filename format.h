@@ -1,5 +1,5 @@
 /*
- * This file is part of the XXX distribution (https://github.com/xxxx or http://xxx.github.io).
+ * This file is part of the CXX distribution (https://github.com/seanhobeck/cxx).
  * Copyright (c) 2015 Liviu Ionescu.
  *
  * This program is free software: you can redistribute it and/or modify
