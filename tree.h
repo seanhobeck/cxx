@@ -213,7 +213,7 @@ _GLIBCXX_VISIBILITY(default) {
 				node_stack.pop();
 
 				if (current_node->_data == data)
-					return std::make_shared<current_node>;
+					return std::make_shared<_node>(current_node);
 				for (const _node child: current_node->_children)
 					node_stack.push(child);
 			}
