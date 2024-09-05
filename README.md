@@ -1,2 +1,2 @@
 # cxx
- a collection of cpp extenstion headers
+ this is still a wip (work in progress)
