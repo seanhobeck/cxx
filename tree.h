@@ -252,6 +252,12 @@ _GLIBCXX_VISIBILITY(default) {
 			return std::find(this->_root.children.begin(), this->_root.children.end(), child);
 		};
 
+		/// @fn: grabbing the instance of the root node.
+		_GLIBCXX_NODISCARD
+		node const& root() _GLIBCXX_CONST {
+			return this->_root;
+		};
+
 		/// @fn: overload operator for indexing the root node.
 		_GLIBCXX_NODISCARD
 		std::shared_ptr<node> operator[](unsigned int idx) _GLIBCXX_CONST {
