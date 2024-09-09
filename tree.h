@@ -26,6 +26,9 @@
 
 #if __cplusplus >= 202002L
 
+/// @uses: std::function<?>
+#include <functional>
+
 /// @uses: std::vector<?>
 #include <vector>
 
@@ -58,6 +61,12 @@ _GLIBCXX_VISIBILITY(default) {
 	public:
 		/// @note: internal class for nodes.
 		class node {
+		protected:
+			/// @note: sort fns.
+			using _s_ifn = std::function<bool(_ty const&, _ty const&)>;
+			using _s_nfn = std::function<bool(node const&, node const&)>;
+
+		private:
 			/// @field: data held in each node.
 			_ty _data;
 
@@ -88,6 +97,34 @@ _GLIBCXX_VISIBILITY(default) {
 			/// @fn: getter for the nodes data.
 			_GLIBCXX_NODISCARD
 			_ty data() _GLIBCXX_CONST { return this->_data; }
+
+			/// @fn: sorting items based on comparing items
+			template<typename _s_ifn = std::function<bool(_ty const&, _ty const&)>>
+			void isort(_s_ifn &fn) _GLIBCXX_NOEXCEPT {
+				/// sort all of the children...
+				std::sort(this->_children.begin(), this->_children.end(), fn);
+
+				/// if we are a leaf, dont do anymore sorting.
+				if (this->is_leaf())
+					return;
+				/// recursive for all of the child nodes...
+				for (auto& node : this->_children)
+					node.sort(fn);
+			}
+
+			/// @fn: sorting nodes based on comparing item
+			template<typename _s_nfn = std::function<bool(node const&, node const&)>>
+			void nsort(_s_nfn &fn) _GLIBCXX_NOEXCEPT {
+				/// sort all of the children...
+				std::sort(this->_children.begin(), this->_children.end(), fn);
+
+				/// if we are a leaf, dont do anymore sorting.
+				if (this->is_leaf())
+					return;
+				/// recursive for all of the child nodes...
+				for (auto& node : this->_children)
+					node.sort(fn);
+			}
 
 			/// @fn: adds a child to this node.
 			void append(node const &child) {
@@ -142,6 +179,7 @@ _GLIBCXX_VISIBILITY(default) {
 	protected:
 		/// @note: internal iterator for pre-order iterating a tree.
 		class _iterator {
+		protected:
 			/// @usings: for readability...
 			using _iter_cat = std::forward_iterator_tag;
 			using _val_ty = _ty;
@@ -149,6 +187,7 @@ _GLIBCXX_VISIBILITY(default) {
 			using _ptr = _ty *;
 			using _ref = _ty &;
 
+		private:
 			/// @field: stack of the current iterated nodes.
 			std::stack<node> _nodes;
 
@@ -234,6 +273,18 @@ _GLIBCXX_VISIBILITY(default) {
 					node_stack.push(child);
 			}
 			return nullptr;
+		}
+
+		/// @fn: sorting items based on comparing items
+		template<typename _s_ifn = std::function<bool(_ty const&, _ty const&)>>
+		void isort(_s_ifn &fn) _GLIBCXX_NOEXCEPT {
+			this->_root.isort(fn);
+		}
+
+		/// @fn: sorting nodes based on comparing item
+		template<typename _s_nfn = std::function<bool(node const&, node const&)>>
+		void nsort(_s_nfn &fn) _GLIBCXX_NOEXCEPT {
+			this->_root.nsort(fn);
 		}
 
 		/// @fn: adds a child to this tree's root node.
