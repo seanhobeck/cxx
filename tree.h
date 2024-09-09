@@ -24,6 +24,8 @@
 #ifndef CXX_TREE_H
 #define CXX_TREE_H
 
+#if __cplusplus >= 202002L
+
 /// @uses: std::vector<?>
 #include <vector>
 
@@ -43,7 +45,7 @@ namespace std
 _GLIBCXX_VISIBILITY(default) {
 	/// @note: concept to make sure that the type provided is comparable in a struct.
 	template<typename _ty>
-	concept __is_cmp = requires(_ty a, _ty b)
+	concept __is_cmp = requires(_ty const &a, _ty const &b)
 	{
 		/// eq & ne checks only.
 		{ a == b } -> std::convertible_to<bool>;
@@ -53,48 +55,55 @@ _GLIBCXX_VISIBILITY(default) {
 	/// @note: class for tree-like containers.
 	template<typename _ty> requires __is_cmp<_ty>
 	class tree {
-	protected:
+	public:
 		/// @note: internal class for nodes.
-		class _node {
+		class node {
 			/// @field: data held in each node.
 			_ty _data;
 
 			/// @field: shared ptr to the parent node.
-			_node _parent;
+			std::shared_ptr<node> _parent;
 
 			/// @field: vector container of all children nodes.
-			std::vector<_node> _children;
+			std::vector<node> _children {};
 
 		public:
 			/// @note: constructor for a tree node.
-			_GLIBCXX20_CONSTEXPR _node(const _ty &data) _GLIBCXX_NOEXCEPT
+			_GLIBCXX20_CONSTEXPR node() : _parent(nullptr) {};
+			_GLIBCXX20_CONSTEXPR explicit node(_ty const &data) _GLIBCXX_NOEXCEPT
 				: _data(data), _parent(nullptr) {
+			}
+			_GLIBCXX20_CONSTEXPR node(_ty const &data, std::shared_ptr<node> parent) _GLIBCXX_NOEXCEPT
+				: _data(data), _parent(parent) {
 			}
 
 			/// @fn: getter for the nodes children.
 			_GLIBCXX_NODISCARD
-			std::vector<_node> children() _GLIBCXX_CONST { return this->children; }
+			std::vector<node> children() _GLIBCXX_CONST { return this->_children; }
 
 			/// @fn: getter for the nodes parent.
 			_GLIBCXX_NODISCARD
-			_node parent() _GLIBCXX_CONST { return this->parent; }
+			std::shared_ptr<node> parent() _GLIBCXX_CONST { return this->_parent; }
 
 			/// @fn: getter for the nodes data.
 			_GLIBCXX_NODISCARD
-			_ty data() _GLIBCXX_CONST { return this->data; }
+			_ty data() _GLIBCXX_CONST { return this->_data; }
 
-			/// @brief Adds a child to this node.
-			/// @param child The child node to be added.
-			void append(const _node &child) {
-				child->parent = this;
+			/// @fn: adds a child to this node.
+			void append(node const &child) {
+				child.parent = std::make_shared<node>(this);
 				this->_children.push_back(child);
 			}
 
 			/// @fn: removes a child from this node.
-			/// @param: child The child node to be removed.
-			void remove(const _node &child) {
+			void remove(node const &child) {
 				this->_children.remove(child);
 			}
+
+			/// @fn: getting the index of a child node from this tree's root node.
+			unsigned int index(node const& child) {
+				return std::find(this->_children.begin(), this->_children.end(), child);
+			};
 
 			/// @fn: checks if this node is a leaf (has no children).
 			_GLIBCXX_NODISCARD
@@ -110,17 +119,27 @@ _GLIBCXX_VISIBILITY(default) {
 
 			/// @fn: overload operator to compare if it is eq.
 			_GLIBCXX_NODISCARD
-			bool operator==(_node a, _node b) _GLIBCXX_CONST {
-				return a._data == b._data;
+			bool operator==(node const &o) _GLIBCXX_CONST {
+				return this->_data == o._data;
 			}
 
 			/// @fn: overload operator to compare if it is ne.
 			_GLIBCXX_NODISCARD
-			bool operator!=(_node a, _node b) _GLIBCXX_CONST {
-				return !(a._data == b._data);
+			bool operator!=(node const &o) _GLIBCXX_CONST {
+				return this->_data != o._data;
 			}
+
+			/// @fn: overload operator for indexing the children nodes.
+			_GLIBCXX_NODISCARD
+			std::shared_ptr<node> operator[](unsigned int idx) _GLIBCXX_CONST {
+				if (idx >= this->_children.size())
+					throw std::out_of_range("index out of range");
+
+				return std::make_shared<node>(this->_children[idx]);
+			};
 		};
 
+	protected:
 		/// @note: internal iterator for pre-order iterating a tree.
 		class _iterator {
 			/// @usings: for readability...
@@ -131,27 +150,27 @@ _GLIBCXX_VISIBILITY(default) {
 			using _ref = _ty &;
 
 			/// @field: stack of the current iterated nodes.
-			std::stack<_node> _nodes;
+			std::stack<node> _nodes;
 
 		public:
 			/// @note: construction for the tree containers iterator.
-			_GLIBCXX20_CONSTEXPR _iterator(_node node) _GLIBCXX_NOEXCEPT {
+			_GLIBCXX20_CONSTEXPR explicit _iterator(node node) _GLIBCXX_NOEXCEPT {
 				if (node) this->_nodes.push(node);
 			}
 
 			/// @fn: returns the stack of nodes used in the current iter.
 			_GLIBCXX_NODISCARD
-			std::stack<_node> nodes() { return this->_nodes; };
+			std::stack<node> nodes() { return this->_nodes; };
 
 			/// @fn: overload operators for comparison on looping (eq)
 			_GLIBCXX_NODISCARD
-			bool operator==(const _iterator &other) _GLIBCXX_CONST {
+			bool operator==(_iterator const &other) _GLIBCXX_CONST {
 				return this->_nodes == other.nodes;
 			}
 
 			/// @fn: overload operators for comparison on looping (ne)
 			_GLIBCXX_NODISCARD
-			bool operator!=(const _iterator &other) _GLIBCXX_CONST {
+			bool operator!=(_iterator const &other) _GLIBCXX_CONST {
 				return !(*this == other);
 			}
 
@@ -182,14 +201,14 @@ _GLIBCXX_VISIBILITY(default) {
 
 	private:
 		/// @field: root node shared ptr.
-		_node _root;
+		node _root;
 
 	public:
 		/// @note: constructor for a tree container.
-		_GLIBCXX20_CONSTEXPR tree() {
-			this->_root = _node();
+		_GLIBCXX20_CONSTEXPR explicit tree(_ty data) {
+			this->_root = node(data);
 		};
-		_GLIBCXX20_CONSTEXPR tree(_node root) : _root(root) {
+		_GLIBCXX20_CONSTEXPR explicit tree(node root) : _root(root) {
 		};
 
 		/// @fn: getting the beginning iterator.
@@ -200,25 +219,45 @@ _GLIBCXX_VISIBILITY(default) {
 		_GLIBCXX_NODISCARD
 		_iterator end() { return _iterator(nullptr); }
 
-		/// @fn: overload operator for indexing a node in the entire tree.
+		/// @fn: function made to search the entire tree for a _ty (data template that matches the provided)
 		_GLIBCXX_NODISCARD
-		std::shared_ptr<_node> operator[](const _ty &data) _GLIBCXX_CONST {
-			if (!this->_root)
-				return nullptr;
-
-			std::stack<_node> node_stack;
+		std::shared_ptr<node> search(_ty const &data) _GLIBCXX_CONST {
+			std::stack<node> node_stack;
 			node_stack.push(this->_root);
 			while (!node_stack.empty()) {
-				_node current_node = node_stack.top();
+				node current_node = node_stack.top();
 				node_stack.pop();
 
-				if (current_node->_data == data)
-					return std::make_shared<_node>(current_node);
-				for (const _node child: current_node->_children)
+				if (current_node.data() == data)
+					return std::make_shared<node>(current_node);
+				for (const node child: current_node.children())
 					node_stack.push(child);
 			}
 			return nullptr;
 		}
+
+		/// @fn: adds a child to this tree's root node.
+		void append(node const &child) {
+			child.parent = std::make_shared<node>(this->_root);
+			this->_root.push_back(child);
+		}
+
+		/// @fn: removes a child from this tree's root node.
+		void remove(node const &child) {
+			this->_root.remove(child);
+		}
+
+		/// @fn: getting the index of a child node from this tree's root node.
+		unsigned int index(node const& child) {
+			return std::find(this->_root.children.begin(), this->_root.children.end(), child);
+		};
+
+		/// @fn: overload operator for indexing the root node.
+		_GLIBCXX_NODISCARD
+		std::shared_ptr<node> operator[](unsigned int idx) _GLIBCXX_CONST {
+			return std::make_shared<node>(this->_root[idx]);
+		};
 	};
 };
+#endif
 #endif
