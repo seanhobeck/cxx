@@ -170,7 +170,7 @@ _GLIBCXX_VISIBILITY(default) {
 			_GLIBCXX_NODISCARD
 			std::shared_ptr<node> operator[](unsigned int idx) _GLIBCXX_CONST {
 				if (idx >= this->_children.size())
-					throw std::out_of_range("index out of range");
+					__glibcxx_assert_fail(__FILE__, __LINE__, "tree<?>::node<?>::operator[]", "index out of range");
 
 				return std::make_shared<node>(this->_children[idx]);
 			};
